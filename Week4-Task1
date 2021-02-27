@@ -1,0 +1,116 @@
+R Notebook
+library(base)
+library(tidyverse)
+## -- Attaching packages --------------------------------------- tidyverse 1.3.0 --
+## v ggplot2 3.3.3     v purrr   0.3.4
+## v tibble  3.0.6     v dplyr   1.0.4
+## v tidyr   1.1.2     v stringr 1.4.0
+## v readr   1.4.0     v forcats 0.5.1
+## -- Conflicts ------------------------------------------ tidyverse_conflicts() --
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()
+library(dplyr)
+library(readr)
+library(lubridate)
+## 
+## Attaching package: 'lubridate'
+## The following objects are masked from 'package:base':
+## 
+##     date, intersect, setdiff, union
+staffDF <- read.csv("/Users/fahadalnasser/Desktop/week3- task 1/excercise.csv", header=TRUE)
+age <- read.csv("/Users/fahadalnasser/Desktop/week3- task 1/age.csv", header= TRUE)
+h_own <- read.csv("/Users/fahadalnasser/Desktop/week3- task 1/home_ownership.csv", header = TRUE)
+job_exp <-  read.csv("/Users/fahadalnasser/Desktop/week3- task 1/job_exp.csv", header = TRUE)
+salaries <- read.csv("/Users/fahadalnasser/Desktop/week3- task 1/salaries.csv", header = TRUE)
+tax <- read.csv("/Users/fahadalnasser/Desktop/week3- task 1/tax_bracket.csv", header= TRUE)
+# Examine DF.
+str(staffDF)
+## 'data.frame':    10 obs. of  7 variables:
+##  $ Name           : chr  "James" "Claire" "Amanda" "Nick" ...
+##  $ Birth.Date     : chr  "15-Jun-79" "04-Oct-72" "17-Dec-80" "26-Jul-84" ...
+##  $ Start.Date     : chr  "1-Ju1-2001" "04-Oct-98" "17-Aug-10" "15-Sep-16" ...
+##  $ Job            : chr  "Reader" "Professor" "Lecturer" "Lecturer" ...
+##  $ No..of.Car     : int  2 3 0 1 1 1 2 2 2 1
+##  $ No..of.Children: int  2 3 1 0 1 1 2 2 3 1
+##  $ Home.Ownership : chr  "Yes" "Yes" "No" "Yes" ...
+#summary(staffDF)
+#head(staffDF)
+#head(age)
+#head(h_own)
+#head(job_exp)
+#head(salaries)
+#head(tax)
+staffDF_dmy <- staffDF%>%
+# Change datatypes in columns 1 & 2 from <char> to <date>
+  mutate(Birth.Date = dmy(Birth.Date), Start.Date = dmy(Start.Date))%>% 
+# Get age and round-down.
+ mutate(Age = floor(as.numeric(difftime(as.Date(Sys.Date()), Birth.Date, unit="weeks"))/52.25))%>%
+ mutate(Age = if_else(Age < 0,  Age + 100, Age * 1.0))%>%
+# Get job experience & round-down.
+ mutate(yrs_experience = floor(as.numeric(difftime(as.Date(Sys.Date()), as.Date(Start.Date), unit="weeks"))/52.25))
+#print(staffDF_dmy)
+#Multiply one column in DF with another column in another DF.
+staffDF_salar <- staffDF_dmy%>%
+  inner_join(salaries, by = c("Job" = "Position"))
+#print(staffDF_salar)
+#If_else conditional statement.
+staffDF_salar <- staffDF_salar%>%
+  mutate(exp_enahnce = if_else(yrs_experience > 5, Basic.Salary * 1.2, Basic.Salary * 1.0))
+#staffDF_salar
+# If else conditional statement.
+staffDF_salar <- staffDF_salar%>%
+  mutate(age_enahnce = if_else(Age < 40, exp_enahnce * 1,
+                               if_else(Age >= 40 & Age <51, exp_enahnce *1.1, exp_enahnce*1.2)))
+#staffDF_salar
+#If_else conditional statement.
+staffDF_salar <- staffDF_salar%>%
+  mutate(child_enahnce = (age_enahnce + (No..of.Children * 80)))
+#staffDF_salar
+staffDF_salar <- staffDF_salar%>%
+  mutate(car_enahnce = (child_enahnce + (No..of.Car * 45)))
+#staffDF_salar
+staffDF_salar <- staffDF_salar%>%
+  mutate(home_enahnce = if_else(Home.Ownership == "Yes", age_enahnce + 1800,
+                                age_enahnce + 2400))
+#Nested if_else conditional statements. 
+staffDF_salar <- staffDF_salar%>%
+  mutate(net_pay = if_else(home_enahnce <=30000, home_enahnce-(home_enahnce*0.2),
+                             if_else(home_enahnce>30000&home_enahnce<=45000, 
+                             home_enahnce-(home_enahnce*0.25), 
+                             if_else(home_enahnce>45000&home_enahnce<=60000, 
+                             home_enahnce-(home_enahnce*0.3),
+                             home_enahnce-(home_enahnce*0.35)))))
+staffDF_salar
+##       Name Birth.Date Start.Date       Job No..of.Car No..of.Children
+## 1    James 1979-06-15 2001-01-01    Reader          2               2
+## 2   Claire 1972-10-04 1998-10-04 Professor          3               3
+## 3   Amanda 1980-12-17 2010-08-17  Lecturer          0               1
+## 4     Nick 1984-07-26 2016-09-15  Lecturer          1               0
+## 5    David 2059-01-11 1990-05-01    Reader          1               1
+## 6    Annie 1986-11-05 2018-10-15  Lecturer          1               1
+## 7      Ali 1977-02-18 1995-06-12    Reader          2               2
+## 8      Joe 1969-09-26 1987-09-15 Professor          2               2
+## 9    Peter 1973-05-01 1999-12-27    Reader          2               3
+## 10 Annette 1984-04-22 2014-08-15  Lecturer          1               1
+##    Home.Ownership Age yrs_experience Basic.Salary exp_enahnce age_enahnce
+## 1             Yes  41             20        50000       60000       66000
+## 2             Yes  48             22        60000       72000       79200
+## 3              No  40             10        40000       48000       52800
+## 4             Yes  36              4        40000       40000       40000
+## 5             Yes  62             30        50000       60000       72000
+## 6              No  34              2        40000       40000       40000
+## 7             Yes  43             25        50000       60000       66000
+## 8             Yes  51             33        60000       72000       86400
+## 9              No  47             21        50000       60000       66000
+## 10             No  36              6        40000       48000       48000
+##    child_enahnce car_enahnce home_enahnce net_pay
+## 1          66160       66250        67800   44070
+## 2          79440       79575        81000   52650
+## 3          52880       52880        55200   38640
+## 4          40000       40045        41800   31350
+## 5          72080       72125        73800   47970
+## 6          40080       40125        42400   31800
+## 7          66160       66250        67800   44070
+## 8          86560       86650        88200   57330
+## 9          66240       66330        68400   44460
+## 10         48080       48125        50400   35280
